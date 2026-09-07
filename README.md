@@ -67,7 +67,6 @@ We tested both controllers in 10 different scenarios with a single map of the ty
 
 We see that the MPC-CBF controller overcomes the RL controller in every metric. The lateral deviation metrics show that the MPC-CBF gets higher accuracy following the lane, at the same time that it gets a higher comfort (less jerk and steer rate) in comparison to the RL scheme. We can also see that, paradoxically, the MPC-CBF is more "reactive" as it approaches closer to the other vehicles, in contrast to the RL model which is more conservative.
 
-
 ### Comparison with different time horizons
 
 We can also try different horizons for the MPC-CBF controller. Specifically, we will try the values $N=5$, $N=15$ and $N=30$, and compute the same metrics. We get the following results:

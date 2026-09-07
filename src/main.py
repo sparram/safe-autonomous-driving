@@ -10,13 +10,15 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 from config import N, TOTAL_STEPS, FPS, MPC_SKIP_STEPS
 from controllers.mpc_cbf_controller import MPC_CBF
 from controllers.rl_controller import RLController
+from controllers.safe_rl_controller import SafeRLController
 from utils.metrics import EpisodeMetrics
 from utils.visualization import render_frame
 
 from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.engine.engine_utils import close_engine, engine_initialized
 
-def run(control_type="MPC-CBF"):
+
+def run(control_type="SafeRL"):
     if engine_initialized():
         close_engine()
 
@@ -41,8 +43,10 @@ def run(control_type="MPC-CBF"):
         controller = MPC_CBF(horizon=N)
     elif control_type == "RL":
         controller = RLController("models_checkpoints/ppo_metadrive.zip")
+    elif control_type == "SafeRL":
+        controller = SafeRLController("models_checkpoints/ppo_metadrive.zip")
     else:
-        raise ValueError("Choose a valid controller: MPC-CBF, RL")
+        raise ValueError("Choose a valid controller: MPC-CBF, RL, SafeRL")
 
     results = []
 
@@ -60,7 +64,7 @@ def run(control_type="MPC-CBF"):
                 obstacles_list = []
 
                 for step in range(TOTAL_STEPS):
-                    # Get vehicle and it's variables
+                    # Get vehicle and its variables
                     vehicle = env.agent
                     state_real = np.array([
                         vehicle.position[0],
@@ -72,6 +76,8 @@ def run(control_type="MPC-CBF"):
                     # Execute the control
                     if control_type == "RL":
                         u_action = controller.get_action(obs, env, state_real)
+                    elif control_type == "SafeRL":
+                        u_action, obstacles_list = controller.get_action(obs, env, state_real)
                     elif control_type == "MPC-CBF":
                         if step % MPC_SKIP_STEPS == 0:
                             u_action, u0_warm, obstacles_list = controller.get_action(env, state_real, u0_warm)
@@ -108,4 +114,4 @@ def run(control_type="MPC-CBF"):
             print("=" * 115)
 
 if __name__ == "__main__":
-    run(control_type="MPC-CBF") # Change control_type between MPC-CBF and RL
+    run(control_type="SafeRL")  # Opciones: "MPC-CBF", "RL", "SafeRL"
