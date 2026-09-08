@@ -8,6 +8,7 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 from config import N, TOTAL_STEPS, MPC_SKIP_STEPS
 from controllers.mpc_cbf_controller import MPC_CBF
+from controllers.mpc_filter_controller import MPC_CBF_SafetyFilter
 from controllers.rl_controller import RLController
 from controllers.safe_rl_controller import SafeRLController
 from utils.metrics import EpisodeMetrics
@@ -35,7 +36,7 @@ def evaluar_semilla(control_type, controller, seed, env):
             u_action = controller.get_action(obs, env, state_real)
         elif control_type == "SafeRL":
             u_action, _ = controller.get_action(obs, env, state_real)
-        elif control_type == "MPC-CBF":
+        elif control_type in ["MPC-CBF", "MPC-Filter"]:
             if step % MPC_SKIP_STEPS == 0:
                 u_action, u0_warm, _ = controller.get_action(env, state_real, u0_warm)
 
@@ -65,11 +66,12 @@ def ejecutar_benchmark(num_escenarios=10, start_seed=37):
         out_of_road_done=False
     ))
 
-    # Instanciar los tres controladores
+    # Instanciar los cuatro controladores
     controladores = {
-        #"MPC-CBF": MPC_CBF(horizon=N),
-        #"RL": RLController("models_checkpoints/ppo_metadrive.zip"),
-        "SafeRL": SafeRLController("models_checkpoints/ppo_metadrive.zip")
+        "MPC-CBF": MPC_CBF(horizon=N),
+        #"MPC-Filter": MPC_CBF_SafetyFilter(horizon=N),
+        "RL": RLController("models_checkpoints/ppo_metadrive.zip"),
+        #"SafeRL": SafeRLController("models_checkpoints/ppo_metadrive.zip")
     }
 
     resumen_global = []

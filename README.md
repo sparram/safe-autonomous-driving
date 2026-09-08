@@ -5,8 +5,9 @@
 
 This project develops a MPC controller combined with a Control Barrier Function (CBF), and compares it with a RL based controller for autonomous driving with Metadrive.
 
-<img src="src/media/mpc_cbf_demo.gif" width="600" alt="MPC-CBF Demo">
-
+<p align="center">
+ <img src="src/media/mpc_cbf_demo.gif" width="600" alt="MPC-CBF Demo">
+</p>
 ## MPC-CBF Controller : Formulation of the problem
 
 The MPC controller is a classic controller an intuitive perspective for control driving. Given a time horizon T, the idea is to solve the following optimization problem for every time step of the simulation:

@@ -9,6 +9,7 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 from config import N, TOTAL_STEPS, FPS, MPC_SKIP_STEPS
 from controllers.mpc_cbf_controller import MPC_CBF
+from controllers.mpc_filter_controller import MPC_CBF_SafetyFilter
 from controllers.rl_controller import RLController
 from controllers.safe_rl_controller import SafeRLController
 from utils.metrics import EpisodeMetrics
@@ -18,7 +19,7 @@ from metadrive.envs.metadrive_env import MetaDriveEnv
 from metadrive.engine.engine_utils import close_engine, engine_initialized
 
 
-def run(control_type="SafeRL"):
+def run(control_type="MPC-Filter"):
     if engine_initialized():
         close_engine()
 
@@ -41,12 +42,14 @@ def run(control_type="SafeRL"):
     # Initiate the chosen controller
     if control_type == "MPC-CBF":
         controller = MPC_CBF(horizon=N)
+    elif control_type == "MPC-Filter":
+        controller = MPC_CBF_SafetyFilter(horizon=N)
     elif control_type == "RL":
         controller = RLController("models_checkpoints/ppo_metadrive.zip")
     elif control_type == "SafeRL":
         controller = SafeRLController("models_checkpoints/ppo_metadrive.zip")
     else:
-        raise ValueError("Choose a valid controller: MPC-CBF, RL, SafeRL")
+        raise ValueError("Choose a valid controller: MPC-CBF, MPC-Filter, RL, SafeRL")
 
     results = []
 
@@ -78,7 +81,7 @@ def run(control_type="SafeRL"):
                         u_action = controller.get_action(obs, env, state_real)
                     elif control_type == "SafeRL":
                         u_action, obstacles_list = controller.get_action(obs, env, state_real)
-                    elif control_type == "MPC-CBF":
+                    elif control_type in ["MPC-CBF", "MPC-Filter"]:
                         if step % MPC_SKIP_STEPS == 0:
                             u_action, u0_warm, obstacles_list = controller.get_action(env, state_real, u0_warm)
 
@@ -107,11 +110,12 @@ def run(control_type="SafeRL"):
 
         if results:
             print("\n" + "=" * 115)
-            print(f"{'MODO':<8} | {'SEMILLA':<7} | {'ÉXITO':<6} | {'ERR LAT PROM':<12} | {'EXCESO SALIDA':<14} | {'DIST MÍN':<10} | {'JERK PROM':<10} | {'STEER RATE':<10} | {'PASOS':<6}")
+            print(f"{'MODO':<10} | {'SEMILLA':<7} | {'ÉXITO':<6} | {'ERR LAT PROM':<12} | {'EXCESO SALIDA':<14} | {'DIST MÍN':<10} | {'JERK PROM':<10} | {'STEER RATE':<10} | {'PASOS':<6}")
             print("=" * 115)
             for r in results:
-                print(f"{r['Controlador']:<8} | {r['Seed']:<7} | {r['Éxito']:<6} | {r['Err. Lat. Prom (m)']:<12.3f} | {r['Exceso Salida (m)']:<14.3f} | {r['Dist. Mín Obs (m)']:<10.3f} | {r['Jerk Prom (1/s)']:<10.3f} | {r['Steer Rate Prom (rad/s)']:<10.3f} | {r['Pasos']:<6}")
+                print(f"{r['Controlador']:<10} | {r['Seed']:<7} | {r['Éxito']:<6} | {r['Err. Lat. Prom (m)']:<12.3f} | {r['Exceso Salida (m)']:<14.3f} | {r['Dist. Mín Obs (m)']:<10.3f} | {r['Jerk Prom (1/s)']:<10.3f} | {r['Steer Rate Prom (rad/s)']:<10.3f} | {r['Pasos']:<6}")
             print("=" * 115)
 
 if __name__ == "__main__":
-    run(control_type="SafeRL")  # Opciones: "MPC-CBF", "RL", "SafeRL"
+    # Opciones de control_type: "MPC-CBF", "MPC-Filter", "RL", "SafeRL"
+    run(control_type="MPC-CBF")
