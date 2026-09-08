@@ -62,10 +62,10 @@ We tested both controllers in 10 different scenarios with a single map of the ty
 
 | Controller | Avg Lateral Error (m) | Max Lateral Deviation (m) | Min Safety Dist (m) | Avg Jerk | Steer Rate |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| **MPC-CBF** | **0.30** | **0.33** | **3.33** | **0.51** | **0.23** |
-| **RL** | 0.96 | 1.25 | 5.23 | 7.83 | 0.45 |
+| **MPC-CBF** | **0.30 ± 0.06** | **0.34 ± 0.43** | **3.33 ± 0.51** | **0.51 ± 0.19** | **0.23 ± 0.07** |
+| **RL** | 0.96 ± 0.23 | 1.25 ± 1.78 | 5.23 ± 2.77 | 7.83 ± 1.06 | 0.45 ± 0.04|
 
-We see that the MPC-CBF controller overcomes the RL controller in every metric. The lateral deviation metrics show that the MPC-CBF gets higher accuracy following the lane, at the same time that it gets a higher comfort (less jerk and steer rate) in comparison to the RL scheme. We can also see that, paradoxically, the MPC-CBF is more "reactive" as it approaches closer to the other vehicles, in contrast to the RL model which is more conservative.
+We see that the MPC-CBF controller overcomes the RL controller in every metric. The lateral deviation metrics show that the MPC-CBF gets higher accuracy following the lane, at the same time that it gets a higher comfort (less jerk and steer rate) in comparison to the RL scheme, which seems to be more violent and aggressive with its driving. We can also see that the MPC-CBF is "reactive" as it approaches closer to the other vehicles, but always keeps an almost deterministic behaviour. In contrast, the RL model is more impredictable due to its high variance in the safety distance.
 
 ### Comparison with different time horizons
 
@@ -73,9 +73,9 @@ We can also try different horizons for the MPC-CBF controller. Specifically, we 
 
 | Horizon (N) | Success Rate | Avg Lateral Error (m) | Max Lateral Deviation (m) | Min Safety Dist (m) | Avg Jerk | Steer Rate |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| $N = 5$ | 0.0 % | 3.60 | 3.01 | 19.08 | 0.10 | 0.02 |
-| $N = 15$ | **50 %** | **0.30** | **0.34** | **3.33** | **0.51** | **0.23** |
-| $N = 30$ | 10 % | 0.34 | 0.30 | 3.17 | 0.53 | 0.36 |
+| $N = 5$ | 0.0 % | 3.60 ± 2.68 | 3.01 ± 2.05| 19.08 ± 19.64 | 0.10 ± 0.11 | 0.02 ± 0.03|
+| $N = 15$ | **50 %** | **0.30 ± 0.06** | **0.34 ± 0.43** | **3.33 ± 0.51** | **0.51 ± 0.19** | **0.23 ± 0.07** |
+| $N = 30$ | 10 % | 0.34 ± 0.07 | 0.30 ± 0.35 | 3.17 ± 0.46 | 0.53 ± 0.16 | 0.36 ± 0.12 |
 
 We see different behaviours depending on the size of the horizon: 
 For a low horizon $N=5$, the vehicle becomes blind to the future and hence its responses becomes very reactive. That's why we get higher lateral deviations with low response rates (low jerk and steer). In other words, the vehicle doesn't have the capacity to follow the lane before even reaching traffic.
@@ -83,7 +83,7 @@ For a low horizon $N=5$, the vehicle becomes blind to the future and hence its r
 When we turn to a horizon $N=15$ we get better metrics in comparison to the previous case: the vehicle starts following the lane as it anticipates more to the future, which is seen by the low lateral deviation metrics. We also get smoother behaviour and the vehicle avoids the obstacles without being too conservative (we can adjust this with the $\gamma$ parameter of the CBF).
 The success rate increases considerably, suggesting the vehicle arrives to its destination.
 
-The greater horizon with $N=30$ gets similar metrics, but as we use a LTV approximation to turn the MPC into a QP problem the linear approximation of the dynamics starts diverging, which translates into a bad performance when following of the lanes and avoiding obstacles. That's why, even when we get a similar behaviour to $N=15$, the success rate collapses, because the model starts allucinating the real dynamics of the vehicle.
+The greater horizon with $N=30$ gets similar metrics, but as we use a LTV approximation to turn the MPC into a QP problem the linear approximation of the dynamics starts diverging, which translates into a bad performance when following of the lanes and avoiding obstacles. That's why, even when we get a similar behaviour to $N=15$, the success rate collapses, because the model starts hallucinating the real dynamics of the vehicle.
 
 ### Comparison of CBF Implementation:
 
@@ -93,13 +93,13 @@ $$\min_u \|u - u_{MPC}\|^2$$
 Subject to the CBF constraint (which can be then linearized as before) $$h(x_{k+1}) \ge (1 - \gamma) h(x_k)$$
 
 (This means: to project the original MPC solution into the safety set in the actual instant)
-Note that the CBF constraint is explicitly taken for the actual time instant, which contrasts to the original formulation, which ensures that the CBF constraint is hold for the entire time horizon. This translates to a faster computation of the control, but sacrifices the the strong safety constraint.
+Note that the CBF constraint is explicitly taken for the actual time instant, which contrasts to the original formulation, which ensures that the CBF constraint is hold for the entire time horizon. This translates to a faster computation of the control, but sacrifices the strong safety constraint.
 
-Just like the previous experiments, we take 10 random escenarios, and compare the performance of both methods.
+Just like the previous experiments, we take 10 random scenarios, and compare the performance of both methods.
 
 | Controller |  Success Rate | Avg Lateral Error (m) | Max Lateral Deviation (m) | Min Safety Dist (m) | Avg Jerk | Steer Rate |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Joint MPC-CBF** | **50%** | **0.30** | **0.33** | **3.33** | **0.51** | **0.23** |
-| **MPC + CBF (Safety Filter)** | 10% | 0.24 | 0.17 | 3.51 | 0.55 | 0.21 |
+| **Joint MPC-CBF** | **50%** | **0.30 ± 0.06** | **0.34 ± 0.43** | **3.33 ± 0.51** | **0.51 ± 0.19** | **0.23 ± 0.07** |
+| **MPC + CBF (Safety Filter)** | 10% | 0.24 ± 0.05 | 0.17 ± 0.13 | 3.51 ± 0.71 | 0.55 ± 0.25 | 0.21 ± 0.13 |
 
 We see that the MPC-CBF strategy continues to outcome the Safety Filter method when it comes to taking the vehicle to the destination. However, both methods are similar when it comes to comfort and safety distance from the other vehicles. Moreover, the Safety Filter gets better metrics when it comes to follow the lane. We expect this, since the safety filter is a projection of the MPC solution which is designed precisely to follow the lane.
