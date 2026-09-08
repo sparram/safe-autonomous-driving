@@ -84,3 +84,22 @@ When we turn to a horizon $N=15$ we get better metrics in comparison to the prev
 The success rate increases considerably, suggesting the vehicle arrives to its destination.
 
 The greater horizon with $N=30$ gets similar metrics, but as we use a LTV approximation to turn the MPC into a QP problem the linear approximation of the dynamics starts diverging, which translates into a bad performance when following of the lanes and avoiding obstacles. That's why, even when we get a similar behaviour to $N=15$, the success rate collapses, because the model starts allucinating the real dynamics of the vehicle.
+
+### Comparison of CBF Implementation:
+
+Now we will compare the impact of changing the CBF implementation. In the original formulation, the CBF is implemented as an explicit constraint on the MPC problem, which must hold along the entire time horizon. Another alternative could be to implement an unconstrained MPC problem and then implement a **Safety Filter**. Mathematically, in the time instant $k$, we would solve the QP problem
+
+$$\min_u \|u - u_{MPC}\|^2$$
+Subject to the CBF constraint (which can be then linearized as before) $$h(x_{k+1}) \ge (1 - \gamma) h(x_k)$$
+
+(This means: to project the original MPC solution into the safety set in the actual instant)
+Note that the CBF constraint is explicitly taken for the actual time instant, which contrasts to the original formulation, which ensures that the CBF constraint is hold for the entire time horizon. This translates to a faster computation of the control, but sacrifices the the strong safety constraint.
+
+Just like the previous experiments, we take 10 random escenarios, and compare the performance of both methods.
+
+| Controller |  Success Rate | Avg Lateral Error (m) | Max Lateral Deviation (m) | Min Safety Dist (m) | Avg Jerk | Steer Rate |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Joint MPC-CBF** | **50%** | **0.30** | **0.33** | **3.33** | **0.51** | **0.23** |
+| **MPC + CBF (Safety Filter)** | 10% | 0.24 | 0.17 | 3.51 | 0.55 | 0.21 |
+
+We see that the MPC-CBF strategy continues to outcome the Safety Filter method when it comes to taking the vehicle to the destination. However, both methods are similar when it comes to comfort and safety distance from the other vehicles. Moreover, the Safety Filter gets better metrics when it comes to follow the lane. We expect this, since the safety filter is a projection of the MPC solution which is designed precisely to follow the lane.
