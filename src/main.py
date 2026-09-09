@@ -23,7 +23,7 @@ def run(control_type="MPC-Filter"):
     if engine_initialized():
         close_engine()
 
-    num_escenarios = 10
+    num_escenarios = 1
     start_seed = 37
     VIDEO_SKIP = 5
 

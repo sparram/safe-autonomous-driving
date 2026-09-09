@@ -108,7 +108,7 @@ class SafeRLController:
         v_curr = max(state_real[2], 0.0)
 
         # Speed moderation: Progressive deacceleration
-        if v_curr > 4.0:
+        if v_curr > 8.0:
             u_nom[1] = min(u_nom[1], -0.3)
 
         # Scan for nearby obstacles and Emergency Braking System
