@@ -3,6 +3,9 @@ import numpy as np
 
 def render_frame(env, vehicle, state_real, control_type, step, seed, u_action, obstacles_list, screen_w=608, screen_h=608, scaling=5):
     """Genera y dibuja el frame con la información superpuesta de telemetría y CBF."""
+    
+    has_obstacles = obstacles_list is not None and len(obstacles_list) > 0
+
     frame = env.render(
         mode="topdown",
         window=False,
@@ -15,7 +18,7 @@ def render_frame(env, vehicle, state_real, control_type, step, seed, u_action, o
             "step": step,
             "speed_kmh": round(state_real[2] * 3.6, 1),
             "mode": control_type,
-            "obs_count": len(obstacles_list) if (control_type == "MPC-CBF" and obstacles_list) else 0,
+            "obs_count": len(obstacles_list) if has_obstacles else 0,
             "steer": round(u_action[0], 2),
             "accel": round(u_action[1], 2)
         }
@@ -31,10 +34,16 @@ def render_frame(env, vehicle, state_real, control_type, step, seed, u_action, o
 
     cv2.arrowedLine(frame, (car_cx, car_cy), (end_x, end_y), color_vector, 3, tipLength=0.35)
 
-    # Círculos de radio CBF sobre obstáculos para MPC-CBF
-    if control_type == "MPC-CBF" and obstacles_list:
+    # Círculos de radio CBF sobre obstáculos (MPC-CBF, MPC-Filter y SafeRL)
+    if control_type in ["MPC-CBF", "MPC-Filter", "SafeRL"] and has_obstacles:
         v_curr = max(state_real[2], 0.0)
-        r_cbf_m = 1.4 + 0.2 * v_curr
+        
+        # Ajuste del radio de la barrera según el controlador
+        if control_type == "SafeRL":
+            r_cbf_m = 2.0 + 0.2 * v_curr  # Coincide con R_margin de SafeRLController
+        else:
+            r_cbf_m = 1.4 + 0.2 * v_curr  # Coincide con MPC
+            
         theta = state_real[3]
 
         for obs in obstacles_list:
@@ -45,6 +54,7 @@ def render_frame(env, vehicle, state_real, control_type, step, seed, u_action, o
             center_x = int(screen_w / 2 + d_right_cam * scaling)
             center_y = int(screen_h / 2 - d_fwd_cam * scaling)
 
+            # Dibujar barrera de color cian/amarillo
             cv2.circle(frame, (center_x, center_y), int(r_cbf_m * scaling), (255, 255, 0), 2)
 
     return frame

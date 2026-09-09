@@ -4,7 +4,7 @@ DT = 0.1               # Paso de tiempo (s)
 L = 3.0                # Wheelbase (m)
 
 MPC_SKIP_STEPS = 1     # Pasos a omitir entre cálculos del MPC
-GAMMA_CBF = 0.5        # Gamma para la restricción CBF
+GAMMA_CBF = 0.025        # Gamma para la restricción CBF
 
 TOTAL_STEPS = 2000     # Total pasos de la simulación
 

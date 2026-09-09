@@ -23,7 +23,7 @@ def run(control_type="MPC-Filter"):
     if engine_initialized():
         close_engine()
 
-    num_escenarios = 1
+    num_escenarios = 10
     start_seed = 37
     VIDEO_SKIP = 5
 
@@ -34,7 +34,7 @@ def run(control_type="MPC-Filter"):
         num_scenarios=num_escenarios,
         start_seed=start_seed,
         traffic_density=0.15,
-        map=5,
+        map="CCCCC",
         crash_object_done=False,
         out_of_road_done=False
     ))
