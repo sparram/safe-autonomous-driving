@@ -1,17 +1,17 @@
 import os
 import numpy as np
-import osqp
-from scipy import sparse
+from scipy.optimize import minimize
 from stable_baselines3 import PPO
 from config import DT, GAMMA_CBF
 from models.kinematic import KinematicBicycleModel
 
 
 class SafeRLController:
-    def __init__(self, model_path="models_checkpoints/ppo_metadrive.zip"):
+    def __init__(self, model_path="models_checkpoints/ppo_metadrive.zip", w_slack=1e2):
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model checkpoint not found in path: {model_path}.")
         self.model = PPO.load(model_path)
+        self.w_slack = w_slack  # Penalización a la violación de seguridad (slack)
 
     # Extrae obstáculos dinámicos en un radio de seguridad
     def _extract_obstacles(self, env, vehicle_pos, max_dist=18.0):
@@ -28,80 +28,76 @@ class SafeRLController:
                     obstacles_list.append(np.array([v.position[0], v.position[1], vx, vy]))
         return obstacles_list
 
-    # Filtro CBF-QP de 1 paso: Proyecta u_nom al conjunto seguro
-    def _filter_cbf_qp(self, u_nom, state_real, obstacles_list):
+    # Filtro CBF-NLP exacto no lineal con variable de holgura
+    def _filter_cbf_nlp(self, u_nom, state_real, obstacles_list):
         """
-        Minimiza 1/2 || u - u_nom ||^2
+        Minimiza: 1/2 || u - u_nom ||^2 + w_slack * slack^2
         Sujeto a:
-          - Límites del actuador: -1.0 <= u <= 1.0
-          - Restricción CBF: h_k1(u) >= (1 - GAMMA_CBF) * h_k
+          - Actuadores: -1.0 <= u <= 1.0
+          - Holgura: slack >= 0
+          - CBF Exacto: h(f(x_k, u)) + slack >= (1 - GAMMA_CBF) * h(x_k)
         """
         if not obstacles_list:
             return np.clip(u_nom, -1.0, 1.0)
 
-        # Matriz Hessiana P = I y gradiente q = -u_nom (Minimiza ||u - u_nom||^2)
-        P = sparse.csc_matrix(np.eye(2))
-        q = -u_nom.astype(np.float64)
+        # Vector de decisión z = [u_steer, u_accel, slack]
+        z0 = np.array([u_nom[0], u_nom[1], 0.0])
 
-        # Estado nominal predicho a 1 paso y Jacobiano B respecto al control
-        x_next_nom = KinematicBicycleModel.step(state_real, u_nom)
-        B = KinematicBicycleModel.jacobian_u(state_real, u_nom)
+        # Función objetivo a minimizar
+        def objective(z):
+            u = z[:2]
+            slack = z[2]
+            return 0.5 * np.sum((u - u_nom) ** 2) + self.w_slack * (slack ** 2)
 
-        A_cbf_list = []
-        l_cbf_list = []
-        u_cbf_list = []
+        # Gradiente analítico de la función objetivo
+        def objective_grad(z):
+            u = z[:2]
+            slack = z[2]
+            return np.array([u[0] - u_nom[0], u[1] - u_nom[1], 2.0 * self.w_slack * slack])
 
-        # 1. Limites fisicos del actuador [-1, 1]
-        A_cbf_list.append(np.eye(2))
-        l_cbf_list.append(np.array([-1.0, -1.0]))
-        u_cbf_list.append(np.array([1.0, 1.0]))
-
-        # 2. Construcción de restricciones CBF por obstáculo
+        # Restricciones CBF no lineales exactas
+        constraints = []
         for obs in obstacles_list:
-            obs_x0, obs_y0 = obs[0], obs[1]
-            vx_obs = obs[2] if len(obs) > 2 else 0.0
-            vy_obs = obs[3] if len(obs) > 3 else 0.0
+            obs_k = obs[:2]
+            v_obs = obs[2:] if len(obs) > 2 else np.zeros(2)
+            obs_k1 = obs_k + v_obs * DT
 
-            # Posición proyectada del obstáculo
-            obs_k = np.array([obs_x0, obs_y0])
-            obs_k1 = np.array([obs_x0 + vx_obs * DT, obs_y0 + vy_obs * DT])
+            def cbf_constraint(z, o_k=obs_k, o_k1=obs_k1):
+                u = z[:2]
+                slack = z[2]
 
-            v_next = max(x_next_nom[2], 0.1)
-            R_margin = 1.4 + 0.2 * v_next
+                # Propagación directa a través del modelo cinemático no lineal
+                x_next = KinematicBicycleModel.step(state_real, u)
+                v_next = max(x_next[2], 0.1)
+                R_margin = 8.0 + 0.2 * v_next
 
-            # Valores de CBF en k y k+1 nominal
-            h_k = (state_real[0] - obs_k[0])**2 + (state_real[1] - obs_k[1])**2 - R_margin**2
-            h_k1_nom = (x_next_nom[0] - obs_k1[0])**2 + (x_next_nom[1] - obs_k1[1])**2 - R_margin**2
+                h_k = np.sqrt((state_real[0] - o_k[0]) ** 2 + (state_real[1] - o_k[1]) ** 2) - R_margin
+                h_k1 = np.sqrt((x_next[0] - o_k1[0]) ** 2 + (x_next[1] - o_k1[1]) ** 2 ) - R_margin
 
-            # Gradiente de h respecto al estado
-            dh_dx = 2 * (x_next_nom[0] - obs_k1[0])
-            dh_dy = 2 * (x_next_nom[1] - obs_k1[1])
-            grad_h = np.array([dh_dx, dh_dy, 0.0, 0.0])
+                # Expresión g(z) >= 0 para SLSQP
+                return h_k1 + slack - (1.0 - GAMMA_CBF) * h_k
 
-            # Sensibilidad con respecto al control (grad_h @ B)
-            a_row = grad_h @ B
-            
-            # Condición CBF: grad_h @ B @ u >= (1 - GAMMA_CBF) * h_k - h_k1_nom + grad_h @ B @ u_nom
-            l_val = (1.0 - GAMMA_CBF) * h_k - h_k1_nom + a_row @ u_nom
+            constraints.append({'type': 'ineq', 'fun': cbf_constraint})
 
-            A_cbf_list.append(a_row.reshape(1, 2))
-            l_cbf_list.append(np.array([l_val]))
-            u_cbf_list.append(np.array([np.inf]))
+        # Límites del vector z: u in [-1, 1], slack in [0, inf)
+        bounds = [(-1.0, 1.0), (-1.0, 1.0), (0.0, None)]
 
-        A_qp = sparse.csc_matrix(np.vstack(A_cbf_list))
-        l_qp = np.hstack(l_cbf_list)
-        u_qp = np.hstack(u_cbf_list)
+        # Resolver optimización con SLSQP
+        res = minimize(
+            objective,
+            z0,
+            method='SLSQP',
+            jac=objective_grad,
+            bounds=bounds,
+            constraints=constraints,
+            options={'ftol': 1e-4, 'maxiter': 50}
+        )
 
-        # Resolver QP con OSQP
-        prob = osqp.OSQP()
-        prob.setup(P, q, A_qp, l_qp, u_qp, verbose=False, eps_abs=1e-3, eps_rel=1e-3)
-        res = prob.solve()
+        if res.success:
+            return res.x[:2]
 
-        if res.info.status == 'solved':
-            return res.x
-
-        # Fallback si el QP es infactible: frenado de emergencia
-        return np.array([0.0, -1.0])
+        # En caso de fallo de convergencia, devuelve la acción truncada dentro del rango seguro
+        return np.clip(res.x[:2], -1.0, 1.0)
 
     # Interfaz principal de control
     def get_action(self, obs, env, state_real):
@@ -109,11 +105,36 @@ class SafeRLController:
         u_nom, _ = self.model.predict(obs, deterministic=True)
         u_nom = u_nom.astype(np.float64)
 
+        v_curr = max(state_real[2], 0.0)
+
+        # Speed moderation: Progressive deacceleration
+        if v_curr > 4.0:
+            u_nom[1] = min(u_nom[1], -0.3)
+
+        # Scan for nearby obstacles and Emergency Braking System
+        vehicle = env.agent
+        lane = vehicle.navigation.current_lane
+        vehicles = env.engine.traffic_manager.vehicles
+        dist_critica = 4.0 + 0.2 * v_curr
+        s_ego, lat_ego = lane.local_coordinates(state_real[:2])
+
         # 2. Obtener obstáculos cercanos
         vehicle = env.agent
         obstacles_list = self._extract_obstacles(env, vehicle.position)
+        
+        for v in vehicles:
+            if v != vehicle:
+                s_obs, lat_obs = lane.local_coordinates(v.position)
+                d_fwd = s_obs - s_ego
+                d_right = lat_obs - lat_ego
 
-        # 3. Filtrar la acción con el QP de CBF
-        u_safe = self._filter_cbf_qp(u_nom, state_real, obstacles_list)
+                if 0 < d_fwd < dist_critica and abs(d_right) < 1.5:
+                    u_nom[1] = -1.0
+                    return u_nom, obstacles_list
+                else:
+                    continue
+            
+        # 3. Filtrar la acción con el NLP no lineal y slack
+        u_nom = self._filter_cbf_nlp(u_nom, state_real, obstacles_list)
 
-        return u_safe, obstacles_list
+        return u_nom, obstacles_list

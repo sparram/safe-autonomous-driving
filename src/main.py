@@ -34,7 +34,7 @@ def run(control_type="MPC-Filter"):
         num_scenarios=num_escenarios,
         start_seed=start_seed,
         traffic_density=0.15,
-        map="CCCCC",
+        map=5,
         crash_object_done=False,
         out_of_road_done=False
     ))
@@ -118,4 +118,4 @@ def run(control_type="MPC-Filter"):
 
 if __name__ == "__main__":
     # Opciones de control_type: "MPC-CBF", "MPC-Filter", "RL", "SafeRL"
-    run(control_type="MPC-CBF")
+    run(control_type="SafeRL")
