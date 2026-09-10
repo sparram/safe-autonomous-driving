@@ -85,9 +85,9 @@ def ejecutar_benchmark(num_escenarios=50, start_seed=37):
     # Instanciación de los controladores
     controladores = {
         #"MPC-CBF": MPC_CBF(horizon=N),
-        "MPC-Filter": MPC_CBF_SafetyFilter(horizon=N),
+        #"MPC-Filter": MPC_CBF_SafetyFilter(horizon=N),
         #"RL": RLController("models_checkpoints/ppo_metadrive.zip"),
-        #"SafeRL": SafeRLController("models_checkpoints/ppo_metadrive.zip")
+        "SafeRL": SafeRLController("models_checkpoints/ppo_metadrive.zip")
     }
     
     resumen_global = []
