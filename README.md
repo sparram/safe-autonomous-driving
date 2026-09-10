@@ -62,10 +62,11 @@ For the experiments, we considered a $N = 15$, $\Delta t = 0.1$, a $\gamma = 0.2
 
 We tested both controllers in 10 different scenarios with a single map of the type "CCCC", and we got the following metrics
 
-| Controller | Success Rate | Avg Lateral Error (m) | Max Lateral Deviation (m) | Min Safety Dist (m) | Avg Jerk | Steer Rate |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **MPC-CBF** | 50% | **0.30 ± 0.06** | **0.34 ± 0.43** | **3.33 ± 0.51** | **0.51 ± 0.19** | **0.23 ± 0.07** |
-| **RL** | 50% | 0.96 ± 0.23 | 1.25 ± 1.78 | 5.23 ± 2.77 | 7.83 ± 1.06 | 0.45 ± 0.04|
+| Controller | Success Rate | Avg Lateral Error (m) | Max Lateral Deviation (m) | Min Safety Dist (m) | Avg Jerk | Steer Rate | Time (ms)
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **MPC-CBF** | 43% | 0.23 ± 0.12 | 0.29 ± 0.48 | 3.41 ± 0.51 | 0.49 ± 0.21 | 0.23 ± 0.08 | 10.77 ± 0.63 |
+| **RL** | 64% | 0.85 ± 0.12 | 0.59 ± 0.92 | 4.37 ± 1.62 | 7.52 ± 0.97 | 0.45 ± 0.06| 1.32 ± 0.14 |
+| **Safe RL** | 66.7% | 0.84 ± 0.12 | 0.52 ± 0.81 | 4.86 ± 1.66 | 6.93 ± 1.12 | 0.43 ± 0.06| 3.47 ± 3.92 |
 
 We see that the MPC-CBF controller overcomes the RL controller in every metric. The lateral deviation metrics show that the MPC-CBF gets higher accuracy following the lane, at the same time that it gets a higher comfort (less jerk and steer rate) in comparison to the RL scheme, which seems to be more violent and aggressive with its driving. We can also see that the MPC-CBF is "reactive" as it approaches closer to the other vehicles, but always keeps an almost deterministic behaviour. In contrast, the RL model is more impredictable due to its high variance in the safety distance.
 
