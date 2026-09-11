@@ -110,3 +110,29 @@ Just like the previous experiments, we take 50 random scenarios, and compare the
 
 We see that the MPC-CBF strategy continues to outperform the Safety Filter method when it comes to taking the vehicle to the destination for great values of $\gamma$. However, we see that, as we decrease $\gamma$, we see a growing trend on the Safety Distance and the Average Jerk. This means that the MPC + CBF Filter becomes more conservative and more reactive for smaller values of $\gamma$. In the end, we see that the case $\gamma = 0.05$ overcomes the MPC-CBF strategy by taking a more conservative behaviour with the obstacles.
 Both methods are similar when it comes to following the lane and regarding execution time.
+
+### Comparison under different noise levels
+
+To evaluate controller robustness against state estimation uncertainty, zero-mean Gaussian noise $\mathcal{N}(0, \sigma^2)$ was injected into vehicle pose $(x, y, \theta)$, velocity ($v$), and LiDAR observation vectors with three noise levels:
+
+| Noise Level | $\sigma_{\text{pos}}$ (m) | $\sigma_{\text{vel}}$ (m/s) | $\sigma_{\theta}$ (rad) | $\sigma_{\text{obs}}$ |
+| :--- | :---: | :---: | :---: | :---: |
+| **Low** | 0.05 | 0.10 | 0.01 | 0.02 |
+| **Medium** | 0.10 | 0.25 | 0.03 | 0.04 |
+| **High** | 0.20 | 0.50 | 0.05 | 0.08 |
+
+We evaluate all the controllers across 50 random scenarios for each noise level, yielding:
+
+| Noise Level | Controller | Success Rate | Avg Lateral Error (m) | Min Safety Dist (m) | Avg Jerk | Steer Rate (rad/s) | Comp Time (ms) |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Low** | **MPC-CBF** | 36.0% | **0.25 ± 0.10** | **3.59 ± 0.80** | **1.22 ± 0.17** | **0.38 ± 0.10** | 12.19 ± 1.42 |
+| | **RL** | **64.0%** | 0.91 ± 0.44 | 4.37 ± 1.66 | 7.47 ± 0.90 | 0.61 ± 0.04 | **1.37 ± 0.13** |
+| | **Safe RL** | 56.0% | 0.84 ± 0.16 | 4.92 ± 1.96 | 5.91 ± 0.99 | 0.64 ± 0.05 | 6.70 ± 2.73 |
+| **Medium** | **MPC-CBF** | 36.0% | **0.27 ± 0.13** | **3.43 ± 0.71** | **2.35 ± 0.22** | **0.67 ± 0.07** | 10.16 ± 0.54 |
+| | **RL** | **62.0%** | 0.87 ± 0.13 | 4.91 ± 3.32 | 7.08 ± 0.60 | 0.90 ± 0.04 | **1.38 ± 0.17** |
+| | **Safe RL** | 58.0% | 0.89 ± 0.26 | 4.88 ± 2.08 | 5.64 ± 0.95 | 0.93 ± 0.05 | 7.48 ± 3.68 |
+| **High** | **MPC-CBF** | 52.0% | **0.32 ± 0.16** | **3.83 ± 1.21** | **4.01 ± 0.44** | **0.98 ± 0.15** | 10.01 ± 0.46 |
+| | **RL** | **66.0%** | 0.90 ± 0.16 | 5.21 ± 3.49 | 6.31 ± 0.47 | 1.57 ± 0.07 | **1.20 ± 0.12** |
+| | **Safe RL** | 62.0% | 0.94 ± 0.79 | 5.26 ± 2.48 | 5.13 ± 0.94 | 1.58 ± 0.09 | 5.10 ± 1.68 |
+
+In order to compensate for orientation uncertainty, we note that **the steer rate increases across all the controllers as noise increases**, going from 0.38–0.64 rad/s for a low noise level, up to 0.98–1.58 rad/s with the highest noise. We also see that the MPC-CBF controllers keeps a superior lane tracking accuracy (<0.32 m) under state noise, but sacrifices the comfort of the vehicle, as its average jerk rises from 1.22 to 4.01 as the noise increases, and the QP solver needs to perform aggressive corrections to the state estimation errors. However, the RL and Safe RL policies show more robustness under noise as we see in the success rates.

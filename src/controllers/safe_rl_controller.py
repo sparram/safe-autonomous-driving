@@ -5,6 +5,7 @@ from stable_baselines3 import PPO
 from config import DT, GAMMA_CBF
 from models.kinematic import KinematicBicycleModel
 
+GAMMA_CBF = 0.01
 
 class SafeRLController:
     def __init__(self, model_path="models_checkpoints/ppo_metadrive.zip"):
