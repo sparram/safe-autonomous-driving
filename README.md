@@ -15,7 +15,7 @@ The MPC controller is a classical controller with an intuitive perspective for c
 
 $\min J(u) = \sum_{k=1}^N \omega_P J_{pos}(x_k) + \omega_S J_{speed}(x_k) + \omega_U J_{control}(u_k)$
 
-Where $x_k$ represents the state of the vehicle and $u_k$ represents the sequence of actions / controls that guide the vehicle. The weights $\omega_P$, $\omega_S$ and $\omega_U$ penalize the position, the speed and the control respectively.
+Where $x_k$ represents the state of the vehicle and $u_k$ represents the sequence of actions / controls that guide the vehicle. The weights $\omega_P$, $\omega_S$ and $\omega_U$ penalize the position, the speed and the control respectively
 
 This cost function represents the desired behaviour of the vehicle (go straight in the lane, go at a reasonable speed, don't do sudden moves, etc).
 The optimization should be subject to the following constraints:
